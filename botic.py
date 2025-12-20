@@ -3,7 +3,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Updater, MessageHandler, Filters, CallbackContext, CallbackQueryHandler, CommandHandler
 from datetime import datetime, timedelta
 import json
-
+import os
 FILENAME = "users.json"
 
 # --- Армейские даты ---
