@@ -434,7 +434,7 @@ def button(update: Update, context: CallbackContext):
                     event_text = f"✅ {event}"  # прошедшее событие с галочкой
                 else:
                     event_text = event  # будущие события без галочки
-                all_events.append((event_date, f"{event_date.strftime('%d.%m.%Y')}"))
+                all_events.append((event_date, f"{event_date.strftime('%d.%m.%Y')} — {event}"))
 
             # --- Пользовательские даты ---
             for name, dt in user_dates[chat_id].get('custom_dates', {}).items():
@@ -444,7 +444,7 @@ def button(update: Update, context: CallbackContext):
                     date_text = f"✅ {name}"
                 else:
                     date_text = name
-                all_events.append((dt, f"{dt.strftime('%d.%m.%Y')} — {date_text} ({(dt - start_date).days} ДПП)"))
+                all_events.append((dt, f"{dt.strftime('%d.%m.%Y')} — {date_text} ({(dt - start_date).days} дпп)"))
 
             # --- Сортировка всех событий ---
             all_events.sort(key=lambda x: x[0])
