@@ -82,6 +82,7 @@ for i in range(1, 13):
     if day not in army_dates:
         army_dates[day] = f"{i}/12 💖"
 
+tz = ZoneInfo('Europe/Moscow')
 
 # --- Работа с файлом ---
 def load_users():
@@ -95,7 +96,8 @@ def load_users():
                     if isinstance(data[chat_id]['end_date'], str):
                         data[chat_id]['end_date'] = datetime.strptime(
                             data[chat_id]['end_date'], "%d.%m.%Y"
-                        )
+                        ).replace(tzinfo=ZoneInfo(data[chat_id].get('timezone', 'Europe/Moscow')))
+
                 else:
                     data[chat_id]['end_date'] = datetime.now(tz)
                 if 'custom_dates' in data[chat_id]:
@@ -138,6 +140,8 @@ def start(update: Update, context: CallbackContext):
 # --- Сохранение даты ---
 def save_date(update: Update, context: CallbackContext):
     chat_id = str(update.message.chat_id)
+    tz = ZoneInfo(user_dates[chat_id].get('timezone', 'Europe/Moscow'))
+
     text = update.message.text
 
     # --- Сохранение пользовательской цитаты ---
@@ -196,7 +200,7 @@ def save_date(update: Update, context: CallbackContext):
 
     # --- Сохранение даты конца службы ---
     try:
-        end_date = datetime.strptime(text, "%d.%m.%Y")
+        end_date = datetime.strptime(text, "%d.%m.%Y").replace(tzinfo=tz)
 
         if chat_id not in user_dates or not isinstance(user_dates[chat_id], dict):
             user_dates[chat_id] = {
@@ -272,6 +276,7 @@ def button(update: Update, context: CallbackContext):
     query = update.callback_query
     query.answer()
     chat_id = str(query.message.chat_id)
+    tz = ZoneInfo(user_dates[chat_id].get('timezone', 'Europe/Moscow'))
 
     if chat_id not in user_dates or not isinstance(user_dates[chat_id], dict):
         user_dates[chat_id] = {
@@ -280,8 +285,12 @@ def button(update: Update, context: CallbackContext):
             'hidden_dates': set()
         }
     end_date = user_dates[chat_id]['end_date']
+    if end_date.tzinfo is None:
+        end_date = end_date.replace(tzinfo=tz)
+
     if isinstance(end_date, str):
-        end_date = datetime.strptime(end_date, "%d.%m.%Y")
+        end_date = datetime.strptime(end_date, "%d.%m.%Y").replace(tzinfo=tz)
+
         user_dates[chat_id]['end_date'] = end_date
 
     # --- Информация ---
@@ -314,8 +323,8 @@ def button(update: Update, context: CallbackContext):
 
         # Проверяем пользовательские даты
         for name, dt in user_dates[chat_id].get('custom_dates', {}).items():
-            if dt.date() == today.date():
-                today_events.append(name)
+            if dt.tzinfo is None:
+                user_dates[chat_id]['custom_dates'][name] = dt.replace(tzinfo=tz)
 
         # --- Ближайшее событие ---
         upcoming_event = None
@@ -700,8 +709,6 @@ def main():
 
     dispatcher.add_handler(CommandHandler("start", start))
     dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, save_date), group=1)
-    dispatcher.add_handler(CallbackQueryHandler(button), group=0)
-
     dispatcher.add_handler(CallbackQueryHandler(button))
 
     updater.start_polling()
