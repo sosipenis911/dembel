@@ -3,6 +3,8 @@ from telegram.ext import Updater, MessageHandler, Filters, CallbackContext, Call
 from datetime import datetime, timedelta
 import json
 import os
+from zoneinfo import ZoneInfo
+
 
 FILENAME = "users.json"
 PAGE_SIZE = 8
@@ -95,7 +97,7 @@ def load_users():
                             data[chat_id]['end_date'], "%d.%m.%Y"
                         )
                 else:
-                    data[chat_id]['end_date'] = datetime.now()
+                    data[chat_id]['end_date'] = datetime.now(tz)
                 if 'custom_dates' in data[chat_id]:
                     for name, dt in data[chat_id]['custom_dates'].items():
                         if isinstance(dt, str):
@@ -198,11 +200,13 @@ def save_date(update: Update, context: CallbackContext):
 
         if chat_id not in user_dates or not isinstance(user_dates[chat_id], dict):
             user_dates[chat_id] = {
-                'end_date': end_date,
+                'end_date': datetime.now(ZoneInfo("Europe/Moscow")),
                 'custom_dates': {},
                 'hidden_dates': set(),
-                'quote': ""  # <-- сюда будем сохранять цитату пользователя
+                'quote': "",
+                'timezone': "Europe/Moscow"  # <-- по умолчанию MSK
             }
+
 
         else:
             user_dates[chat_id]['end_date'] = end_date
@@ -213,7 +217,9 @@ def save_date(update: Update, context: CallbackContext):
 
         save_users(user_dates)
 
-        today = datetime.now()
+        tz = ZoneInfo(user_dates[chat_id].get('timezone', 'Europe/Moscow'))
+        today = datetime.now(tz)
+
         days_to_end = (end_date - today).days
         days_text = "завтра" if days_to_end == 0 else f"{days_to_end} дн"
         start_date = end_date - timedelta(days=365)
@@ -269,7 +275,7 @@ def button(update: Update, context: CallbackContext):
 
     if chat_id not in user_dates or not isinstance(user_dates[chat_id], dict):
         user_dates[chat_id] = {
-            'end_date': datetime.now(),
+            'end_date': datetime.now(tz),
             'custom_dates': {},
             'hidden_dates': set()
         }
@@ -281,7 +287,9 @@ def button(update: Update, context: CallbackContext):
     # --- Информация ---
     if query.data == 'info':
         end_date = user_dates[chat_id]['end_date']
-        today = datetime.now()
+        tz = ZoneInfo(user_dates[chat_id].get('timezone', 'Europe/Moscow'))
+        today = datetime.now(tz)
+
         start_date = user_dates[chat_id]['end_date'] - timedelta(days=365)
         # --- Прошло и осталось ---
         passed = today - start_date
@@ -380,7 +388,9 @@ def button(update: Update, context: CallbackContext):
 
     # --- Обработка нажатий на подменю информации ---
     elif query.data == 'info_percent':
-        today = datetime.now()
+        tz = ZoneInfo(user_dates[chat_id].get('timezone', 'Europe/Moscow'))
+        today = datetime.now(tz)
+
         start_date = user_dates[chat_id]['end_date'] - timedelta(days=365)
         end_date = user_dates[chat_id]['end_date']
 
@@ -397,7 +407,9 @@ def button(update: Update, context: CallbackContext):
 
 
     elif query.data == 'info_weeks':
-        today = datetime.now()
+        tz = ZoneInfo(user_dates[chat_id].get('timezone', 'Europe/Moscow'))
+        today = datetime.now(tz)
+
         start_date = user_dates[chat_id]['end_date'] - timedelta(days=365)
         end_date = user_dates[chat_id]['end_date']
         passed_days = (today - start_date).days
@@ -419,7 +431,9 @@ def button(update: Update, context: CallbackContext):
         query.edit_message_text(text, reply_markup=reply_markup)
 
     elif query.data == 'info_months':
-        today = datetime.now()
+        tz = ZoneInfo(user_dates[chat_id].get('timezone', 'Europe/Moscow'))
+        today = datetime.now(tz)
+
         start_date = user_dates[chat_id]['end_date'] - timedelta(days=365)
         end_date = user_dates[chat_id]['end_date']
         passed_days = (today - start_date).days
@@ -446,12 +460,20 @@ def button(update: Update, context: CallbackContext):
             "Запустить бота сначала:/start \nВведите текст, который будет отображаться в меню:\nНапример: Илья💖"
         )
         context.user_data['editing_quote'] = True
+        keyboard = [
+            [InlineKeyboardButton("Сменить часовой пояс", callback_data='change_tz')],
+            [InlineKeyboardButton("Вернуться", callback_data='info')]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        query.edit_message_text("Выберите действие:", reply_markup=reply_markup)
 
     # --- Все даты с двумя кнопками ---
     elif query.data == 'all':
         try:
             chat_id = str(query.message.chat_id)
-            today = datetime.now()
+            tz = ZoneInfo(user_dates[chat_id].get('timezone', 'Europe/Moscow'))
+            today = datetime.now(tz)
+
             hidden = user_dates[chat_id].get('hidden_dates', set())
 
             all_events = []
@@ -551,6 +573,28 @@ def button(update: Update, context: CallbackContext):
         # Перерисовываем страницу удаления
         show_delete_page(query, context)
 
+    elif query.data == 'change_tz':
+        keyboard = [
+            [InlineKeyboardButton("MSK-1", callback_data='tz|-1'),InlineKeyboardButton("MSK", callback_data='tz|0'),InlineKeyboardButton("MSK+1", callback_data='tz|1'),
+             InlineKeyboardButton("MSK+2", callback_data='tz|2'), InlineKeyboardButton("MSK+3", callback_data='tz|3'),InlineKeyboardButton("MSK+4", callback_data='tz|4'),
+             InlineKeyboardButton("MSK+5", callback_data='tz|5'), InlineKeyboardButton("MSK+6", callback_data='tz|6'),InlineKeyboardButton("MSK+7", callback_data='tz|7'),
+             InlineKeyboardButton("MSK+8", callback_data='tz|8'), InlineKeyboardButton("MSK+9", callback_data='tz|9'), InlineKeyboardButton("MSK+10", callback_data='tz|10')],
+            [InlineKeyboardButton("Вернуться", callback_data='settings')]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        query.edit_message_text("Выберите часовой пояс:", reply_markup=reply_markup)
+
+    elif query.data.startswith('tz|'):
+        chat_id = str(query.message.chat_id)
+        offset = int(query.data.split('|')[1])
+        user_dates[chat_id]['timezone'] = f"Etc/GMT{-offset}"  # GMT смещается наоборот
+        save_users(user_dates)
+        query.answer(f"Часовой пояс изменён на MSK{offset:+}")
+
+        # Возврат в меню настроек
+        keyboard = [[InlineKeyboardButton("Вернуться", callback_data='settings')]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        query.edit_message_text("✅ Часовой пояс сохранён!", reply_markup=reply_markup)
 
 
 
