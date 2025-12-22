@@ -244,14 +244,16 @@ def save_date(update: Update, context: CallbackContext):
                 break
 
         for name, dt in user_dates[chat_id].get('custom_dates', {}).items():
-            if isinstance(dt, str):
-                dt = datetime.strptime(dt, "%d.%m.%Y")
+            # если dt без tzinfo, делаем aware
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=tz)
                 user_dates[chat_id]['custom_dates'][name] = dt
+
             if name in hidden:
                 continue
-            days_until_event = (dt - today).days
+            days_until_event = (dt - today).days  # теперь оба aware
             if days_until_event >= 0 and (min_days is None or days_until_event < min_days):
-                upcoming_event = f"{name} — {'завтра' if days_until_event==0 else f'через {days_until_event} дн'} ({dt.strftime('%d.%m.%Y')})"
+                upcoming_event = f"{name} — {'завтра' if days_until_event == 0 else f'через {days_until_event} дн'} ({dt.strftime('%d.%m.%Y')})"
                 min_days = days_until_event
 
         if not upcoming_event:
