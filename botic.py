@@ -125,15 +125,75 @@ def save_users(data):
 
 user_dates = load_users()
 
+# --- Статистика бота ---
+STATS_FILE = "stats.json"
+
+def load_stats():
+    try:
+        with open(STATS_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {"total_starts": 0, "users": {}}
+
+def save_stats(stats):
+    with open(STATS_FILE, "w", encoding="utf-8") as f:
+        json.dump(stats, f, ensure_ascii=False, indent=2)
+
+def register_start(update):
+    stats = load_stats()
+    user_id = str(update.effective_user.id)
+    now = datetime.utcnow().isoformat()
+
+    stats["total_starts"] += 1
+
+    if user_id not in stats["users"]:
+        stats["users"][user_id] = {
+            "first_seen": now,
+            "last_seen": now,
+            "starts": 1
+        }
+    else:
+        stats["users"][user_id]["last_seen"] = now
+        stats["users"][user_id]["starts"] += 1
+
+    save_stats(stats)
+
 # --- Старт ---
 def start(update: Update, context: CallbackContext):
+    register_start(update)
     update.message.reply_text(
         "Привет, это ДМБ таймер в тг <3\n"
         "Мой тикток — barannikova\n"
         "Введите дату дембеля в формате ДД.ММ.ГГГГ\n"
         "Например: 15.11.2026"
     )
+def stats(update: Update, context: CallbackContext):
+    admin_id = os.getenv("ADMIN_ID")
 
+    if not admin_id or str(update.effective_user.id) != admin_id:
+        update.message.reply_text("⛔ Эта команда доступна только администратору.")
+        return
+
+    data = load_stats()
+
+    total = data["total_starts"]
+    unique = len(data["users"])
+    repeated = total - unique
+
+    today = datetime.utcnow().date().isoformat()
+
+    today_users = sum(
+        1 for u in data["users"].values()
+        if u["last_seen"][:10] == today
+    )
+
+    update.message.reply_text(
+        f"📊 Статистика ДМБ таймера\n\n"
+        f"🚀 Всего запусков: {total}\n"
+        f"👥 Уникальных пользователей: {unique}\n"
+        f"🔁 Повторных запусков: {repeated}\n"
+        f"📅 Активных сегодня: {today_users}"
+    )
 # --- Сохранение даты ---
 def save_date(update: Update, context: CallbackContext):
     chat_id = str(update.message.chat_id)
@@ -662,6 +722,7 @@ def main():
     dispatcher = updater.dispatcher
 
     dispatcher.add_handler(CommandHandler("start", start))
+    dispatcher.add_handler(CommandHandler("stats", stats))
     dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, save_date), group=1)
     dispatcher.add_handler(CallbackQueryHandler(button), group=0)
 
