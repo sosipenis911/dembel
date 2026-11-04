@@ -169,7 +169,7 @@ def start(update: Update, context: CallbackContext):
     )
 def stats(update: Update, context: CallbackContext):
     print("КОМАНДА STATS ПОЛУЧЕНА")
-    admin_id = os.getenv("ADMIN_ID")
+    admin_id = os.getenv("795174337")
 
     if not admin_id or str(update.effective_user.id) != admin_id:
         update.message.reply_text("⛔ Эта команда доступна только администратору.")
@@ -726,8 +726,6 @@ def main():
     dispatcher.add_handler(CommandHandler("stats", stats))
     dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, save_date), group=1)
     dispatcher.add_handler(CallbackQueryHandler(button), group=0)
-
-    dispatcher.add_handler(CallbackQueryHandler(button))
 
     updater.start_polling()
     updater.idle()
