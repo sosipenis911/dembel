@@ -168,6 +168,7 @@ def start(update: Update, context: CallbackContext):
         "Например: 15.11.2026"
     )
 def stats(update: Update, context: CallbackContext):
+    print("КОМАНДА STATS ПОЛУЧЕНА")
     admin_id = os.getenv("ADMIN_ID")
 
     if not admin_id or str(update.effective_user.id) != admin_id:
