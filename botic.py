@@ -169,7 +169,7 @@ def start(update: Update, context: CallbackContext):
     )
 def stats(update: Update, context: CallbackContext):
     print("КОМАНДА STATS ПОЛУЧЕНА")
-    admin_id = os.getenv("795174337")
+    admin_id = os.getenv("ADMIN_ID")
 
     if not admin_id or str(update.effective_user.id) != admin_id:
         update.message.reply_text("⛔ Эта команда доступна только администратору.")
